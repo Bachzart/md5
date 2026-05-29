@@ -151,7 +151,7 @@ MD5::MD5_CTX::MD5_CTX() {
  */
 void MD5::MD5_CTX::md5_update(byte* data, size_t data_len) {
     size_t buffer_idx = (count / 8) % 64;
-    count += data_len * 8;
+    count += data_len * 8;  // update the count of bits processed
     size_t fill = 64 - buffer_idx;
 
     if(data_len >= fill) {
@@ -166,6 +166,7 @@ void MD5::MD5_CTX::md5_update(byte* data, size_t data_len) {
         }
         buffer_idx = 0;
     }
+    // fill the buffer with the remaining data
     std::copy(data, data + data_len, &buffer[buffer_idx]);
 }
 
@@ -177,6 +178,7 @@ void MD5::MD5_CTX::md5_transform(byte data[64]) {
     bit32 a = state[0], b = state[1], c = state[2], d = state[3];
     bit32 x[16];
 
+    // 512 bits -> 16 * 32 bits
     for(int i = 0; i < 16; ++i) {
         x[i] = static_cast<bit32>(data[i * 4]) |
                static_cast<bit32>(data[i * 4 + 1]) << 8 |
@@ -184,6 +186,7 @@ void MD5::MD5_CTX::md5_transform(byte data[64]) {
                static_cast<bit32>(data[i * 4 + 3]) << 24;
     }
 
+    // 64 rounds of transformation
     for(int i = 0; i < 64; ++i) {
         bit32 f, g;
         if(i < 16) {
@@ -202,6 +205,7 @@ void MD5::MD5_CTX::md5_transform(byte data[64]) {
         a = temp;
     }
 
+    // update the state
     state[0] += a, state[1] += b, state[2] += c, state[3] += d;
 }
 
@@ -211,7 +215,7 @@ void MD5::MD5_CTX::md5_transform(byte data[64]) {
  * @param digest The digest to store the hash in.
  */
 void MD5::MD5_CTX::md5_final(byte digest[16]) {
-    bit64 bits = count;
+    bit64 bits = count; // record the count first, pad_len can not be included
 
     byte padding[64] = {0x80};
     size_t buffer_idx = (count / 8) % 64;
@@ -219,12 +223,14 @@ void MD5::MD5_CTX::md5_final(byte digest[16]) {
 
     md5_update(padding, pad_len);
 
+    // transform the length of the message to a byte array
     byte len_buf[8];
     for(int i = 0; i < 8; ++i) {
         len_buf[i] = (bits >> (i * 8)) & 0xFF;
     }
     md5_update(len_buf, 8);
 
+    // get the result of hash transformation
     for(int i = 0; i < 4; ++i) {
         digest[i * 4]     = static_cast<byte>(state[i]);
         digest[i * 4 + 1] = static_cast<byte>(state[i] >> 8);
